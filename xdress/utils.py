@@ -42,6 +42,8 @@ DEFAULT_PLUGINS = ('xdress.autoall', 'xdress.cythongen', 'xdress.stlwrap')
 
 FORBIDDEN_NAMES = frozenset(['del', 'global'])
 
+SITE_RC = {} # an RunControl instance after parse_global_rc()
+
 def warn_forbidden_name(forname, inname=None, rename=None):
     """Warns the user that a forbidden name has been found."""
     msg = "found forbidden name {0!r}".format(forname)
@@ -347,6 +349,7 @@ class RunControl(object):
 def parse_global_rc():
     '''Search a global xdressrc file and parse if it exists.
     If nothing is found, an empty RunControl is returned.'''
+    global SITE_RC
     home = os.path.expanduser('~')
     globalrcs = [os.path.join(home, '.xdressrc'),
                  os.path.join(home, '.xdressrc.py'),
@@ -360,6 +363,7 @@ def parse_global_rc():
         globalrcdict = {}
         exec_file(globalrc, globalrcdict, globalrcdict)
         rc._update(globalrcdict)
+    SITE_RC = rc  #keep a copy for use in the astparsers module
     return rc
 
 _lang_exts = {

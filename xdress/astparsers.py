@@ -182,7 +182,10 @@ def gccxml_parse(filename, includes=(), defines=('XDRESS',), undefines=(),
     if len(drive) > 0:
         # Windows drive handling, 'C:' -> 'C_'
         xmlname = drive.replace(':', '_') + xmlname
-    xmlname = xmlname.replace(os.path.sep, '_').rsplit('.', 1)[0] + '.xml'
+    if os.path.altsep:
+        xmlname = xmlname.replace(os.path.altsep, '_').rsplit('.', 1)[0] + '.xml'
+    else:
+        xmlname = xmlname.replace(os.path.sep, '_').rsplit('.', 1)[0] + '.xml'
     xmlname = os.path.join(builddir, xmlname)
     cmd = ['gccxml', filename, '-fxml=' + xmlname]
     cmd += ['-I' + i for i in includes]
@@ -304,6 +307,13 @@ def pycparser_parse(filename, includes=(), defines=('XDRESS',), undefines=(),
                 r'-D__restrict=', r'-D__extension__=',
                 r'-D__inline__=', r'-D__inline=',
                 ]}
+    # for pycparser on Windows
+    if os.name == 'nt':
+        siterc = utils.SITE_RC
+        pycparser_includes  = siterc.pycparser_includes if 'pycparser_includes' in siterc else ()
+        pycparser_undefines  = siterc.pycparser_undefines if 'pycparser_undefines' in siterc else ()
+        includes = tuple(pycparser_includes) + tuple(includes)
+        undefines = tuple(undefines) + tuple(pycparser_undefines)
     kwargs['cpp_args'] += ['-I' + i for i in includes]
     kwargs['cpp_args'] += ['-D' + d for d in defines]
     kwargs['cpp_args'] += ['-U' + u for u in undefines]

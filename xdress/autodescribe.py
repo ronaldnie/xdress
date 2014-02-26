@@ -272,6 +272,9 @@ _GCCXML_LITERAL_ENUMS = re.compile('\(\w+::(\w+)\)(\d+)')
 _none_arg = Arg.NONE, None
 _none_return = {'return': None, 'defaults': ()}
 
+def posix_replace(p):
+    return posixpath.join(*p.split(ntpath.sep)) if ntpath.sep in p else p
+
 def clearmemo():
     """Clears all function memoizations for autodescribers."""
     for x in globals().values():
@@ -412,9 +415,9 @@ def gccxml_describe(filename, name, kind, includes=(), defines=('XDRESS',),
         API bindings.
     """
     # GCC-XML and/or Cygwin wants posix paths on Windows.
-    posixfilename = posixpath.join(*ntpath.split(filename)) if os.name == 'nt' \
-                    else filename
-    root = astparsers.gccxml_parse(posixfilename, includes=includes, defines=defines,
+    if os.path.altsep is not None:
+        filename = filename.replace(os.path.sep, os.path.altsep)
+    root = astparsers.gccxml_parse(filename, includes=includes, defines=defines,
                                    undefines=undefines,
                                    extra_parser_args=extra_parser_args,
                                    verbose=verbose, debug=debug, builddir=builddir)
@@ -468,6 +471,12 @@ class GccxmlBaseDescriber(object):
             self._filemap[fid] = fname
         for fname in onlyin:
             fnode = root.find("File[@name='{0}']".format(fname))
+            if os.name == 'nt' and fnode is None:
+                # GCC-XML prefers posix paths, even on windows
+                _fname = fname
+                while fnode is None and ntpath.sep in _fname:
+                    _fname = posix_replace(_fname)
+                    fnode = root.find("File[@name='{0}']".format(_fname))
             if fnode is None:
                 fnode = root.find("File[@name='./{0}']".format(fname))
                 if fnode is None:
@@ -2147,7 +2156,10 @@ def _make_includer(filenames, builddir, language, verbose=False):
     newfile = ""
     newnames = []
     for filename in filenames:
-        newnames.append(filename.replace(os.path.sep, '_'))
+        if os.path.altsep:
+            newnames.append(filename.replace(os.path.altsep, '_'))
+        else:
+            newnames.append(filename.replace(os.path.sep, '_'))
         newfile += '#include "{0}"\n'.format(filename)
     newnames = "-".join(newnames)
     if len(newnames) > 250:
